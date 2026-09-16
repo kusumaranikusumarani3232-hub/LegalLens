@@ -1,0 +1,42 @@
+INDEPENDENT FREELANCE CONSULTING AGREEMENT
+
+This Independent Consulting Agreement ("Agreement") is made effective as of May 1, 2026, by and between:
+
+CLIENT: Apex Innovations Pvt. Ltd., having its registered office at Koramangala, Bengaluru ("Client")
+AND
+CONSULTANT: Amit Verma, independent technology contractor residing at Indiranagar, Bengaluru ("Consultant").
+
+--- [Page 1] ---
+1. SERVICES AND SCOPE OF WORK
+1.1 The Consultant agrees to provide software development, architecture review, and technical advisory services as set forth in Exhibit A ("Services").
+1.2 The Consultant shall perform the Services in a professional, workmanlike manner adhering to industry standards.
+
+2. COMPENSATION AND PAYMENT SCHEDULE
+2.1 Client shall pay Consultant a fixed milestone fee totaling ₹3,50,000 (Three Lakh Fifty Thousand Rupees), payable in three phases:
+    - Phase 1 (Kickoff & Architecture Plan): ₹1,00,000 upon contract execution.
+    - Phase 2 (Core System Implementation): ₹1,50,000 upon deliverable review.
+    - Phase 3 (Final Deployment & Documentation): ₹1,00,000 upon formal acceptance.
+2.2 Invoices submitted by Consultant shall be paid by Client within fifteen (15) days of receipt via electronic funds transfer.
+
+--- [Page 2] ---
+3. INTELLECTUAL PROPERTY RIGHTS
+3.1 All deliverables, code, designs, and documentation created specifically for Client under this Agreement shall belong to Client upon receipt of full and final payment.
+3.2 Until payment is received in full, Consultant retains a lien and copyright ownership over all unpaid work products.
+3.3 Consultant retains all rights in pre-existing developer tools, libraries, and open-source components utilized.
+
+4. CONFIDENTIALITY
+4.1 Each Party agrees not to disclose or permit unauthorized access to confidential proprietary trade secrets, user data, or source code for a duration of two (2) years following termination.
+
+--- [Page 3] ---
+5. TERM AND TERMINATION
+5.1 This Agreement commences on May 1, 2026, and concludes upon completion of the deliverables, estimated as August 31, 2026.
+5.2 Either party may terminate with or without cause upon fourteen (14) days' written notice. In the event of early termination, Client shall pay Consultant for all work completed up to the date of termination.
+
+6. LIMITATION OF LIABILITY
+6.1 Neither party shall be liable for indirect, punitive, or consequential damages. Total liability under this Agreement shall not exceed the total fees actually paid to Consultant under Section 2.
+
+7. GOVERNING LAW
+7.1 This Agreement is governed by the laws of India, with jurisdiction in Bengaluru courts.
+
+CLIENT: Apex Innovations Pvt. Ltd.             CONSULTANT: Amit Verma
+Date: May 1, 2026                              Date: May 1, 2026

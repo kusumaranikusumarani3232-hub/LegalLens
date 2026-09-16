@@ -42,18 +42,18 @@ class AppConfig:
             return target
 
         # Check credentials
+         if target == "groq" and cls.GROQ_API_KEY:
+            return "groq"
         if target == "gemini" and cls.GEMINI_API_KEY:
             return "gemini"
-        if target == "groq" and cls.GROQ_API_KEY:
-            return "groq"
         if target == "openai" and cls.OPENAI_API_KEY:
             return "openai"
 
         # Fallback to whichever provider has an available key
-        if cls.GEMINI_API_KEY:
-            return "gemini"
         if cls.GROQ_API_KEY:
             return "groq"
+        if cls.GEMINI_API_KEY:
+            return "gemini"
         if cls.OPENAI_API_KEY:
             return "openai"
 

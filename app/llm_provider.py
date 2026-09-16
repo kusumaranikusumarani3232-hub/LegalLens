@@ -19,23 +19,23 @@ class LLMProvider:
         self.provider = (provider or config.get_active_provider(override_provider=provider, override_key=api_key)).lower()
         self.api_key = api_key or getattr(config, f"{self.provider.upper()}_API_KEY", None)
 
-    def generate(self, prompt: str, system_prompt: str = SYSTEM_LEGAL_SAFETY_PROMPT, temperature: float = 0.2) -> str:
+    def generate(self, prompt: str, system_prompt: str = SYSTEM_LEGAL_SAFETY_PROMPT, temperature: float = 0.2, json_mode: bool = False, max_tokens: int = 8192) -> str:
         """Dispatches generation to configured provider."""
         if self.provider == "gemini":
-            return self._call_gemini(prompt, system_prompt, temperature)
+            return self._call_gemini(prompt, system_prompt, temperature, max_tokens)
         elif self.provider == "groq":
-            return self._call_groq(prompt, system_prompt, temperature)
+            return self._call_groq(prompt, system_prompt, temperature, json_mode, max_tokens)
         elif self.provider == "openai":
-            return self._call_openai(prompt, system_prompt, temperature)
+            return self._call_openai(prompt, system_prompt, temperature, json_mode, max_tokens)
         else:
             return self._call_mock(prompt, system_prompt)
 
     def generate_json(self, prompt: str, system_prompt: str = SYSTEM_LEGAL_SAFETY_PROMPT) -> Dict[str, Any]:
         """Generates text and parses validated JSON."""
-        raw_text = self.generate(prompt, system_prompt, temperature=0.1)
+        raw_text = self.generate(prompt, system_prompt, temperature=0.1, json_mode=True, max_tokens=8192)
         return self._clean_and_parse_json(raw_text)
 
-    def _call_gemini(self, prompt: str, system_prompt: str, temperature: float) -> str:
+    def _call_gemini(self, prompt: str, system_prompt: str, temperature: float, max_tokens: int = 8192) -> str:
         key = self.api_key or config.GEMINI_API_KEY
         if not key:
             raise LLMError("Gemini API key is not configured. Please set GEMINI_API_KEY in .env or enter it in the sidebar.")
@@ -53,7 +53,7 @@ class LLMProvider:
                 contents=full_prompt,
                 config=types.GenerateContentConfig(
                     temperature=temperature,
-                    max_output_tokens=4096
+                    max_output_tokens=max_tokens
                 )
             )
             return response.text or ""
@@ -71,7 +71,7 @@ class LLMProvider:
             except Exception:
                 raise LLMError(f"Gemini API request failed: {str(e)}")
 
-    def _call_groq(self, prompt: str, system_prompt: str, temperature: float) -> str:
+    def _call_groq(self, prompt: str, system_prompt: str, temperature: float, json_mode: bool = False, max_tokens: int = 8192) -> str:
         key = self.api_key or config.GROQ_API_KEY
         if not key:
             raise LLMError("Groq API key is not configured. Please set GROQ_API_KEY in .env or enter it in the sidebar.")
@@ -81,20 +81,33 @@ class LLMProvider:
             client = Groq(api_key=key)
             model_name = config.GROQ_MODEL
 
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
+            kwargs = {
+                "model": model_name,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=temperature,
-                max_tokens=4096
-            )
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            try:
+                response = client.chat.completions.create(**kwargs)
+            except Exception:
+                # If model or API rejected response_format, retry without it
+                if json_mode and "response_format" in kwargs:
+                    del kwargs["response_format"]
+                    response = client.chat.completions.create(**kwargs)
+                else:
+                    raise
+
             return response.choices[0].message.content or ""
         except Exception as e:
             raise LLMError(f"Groq API request failed: {str(e)}")
 
-    def _call_openai(self, prompt: str, system_prompt: str, temperature: float) -> str:
+    def _call_openai(self, prompt: str, system_prompt: str, temperature: float, json_mode: bool = False, max_tokens: int = 8192) -> str:
         key = self.api_key or config.OPENAI_API_KEY
         if not key:
             raise LLMError("OpenAI API key is not configured. Please set OPENAI_API_KEY in .env or enter it in the sidebar.")
@@ -104,15 +117,27 @@ class LLMProvider:
             client = OpenAI(api_key=key)
             model_name = config.OPENAI_MODEL
 
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
+            kwargs = {
+                "model": model_name,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=temperature,
-                max_tokens=4096
-            )
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            try:
+                response = client.chat.completions.create(**kwargs)
+            except Exception:
+                if json_mode and "response_format" in kwargs:
+                    del kwargs["response_format"]
+                    response = client.chat.completions.create(**kwargs)
+                else:
+                    raise
+
             return response.choices[0].message.content or ""
         except Exception as e:
             raise LLMError(f"OpenAI API request failed: {str(e)}")
@@ -135,8 +160,78 @@ class LLMProvider:
         # Handle Document Analysis prompt
         return self._mock_document_analysis(prompt)
 
+    def _repair_truncated_json(self, text: str) -> Dict[str, Any]:
+        """Attempts to repair truncated or partially incomplete JSON text."""
+        start = text.find('{')
+        if start == -1:
+            raise ValueError("No '{' found in JSON text.")
+        json_body = text[start:]
+
+        stack = []
+        in_string = False
+        escape = False
+        cleaned_chars = []
+
+        for char in json_body:
+            if escape:
+                escape = False
+                cleaned_chars.append(char)
+                continue
+            if char == '\\' and in_string:
+                escape = True
+                cleaned_chars.append(char)
+                continue
+            if char == '"':
+                in_string = not in_string
+                cleaned_chars.append(char)
+                continue
+
+            if not in_string:
+                if char in '{[':
+                    stack.append(char)
+                elif char in '}]':
+                    if stack:
+                        stack.pop()
+            cleaned_chars.append(char)
+
+        repaired = ''.join(cleaned_chars)
+        if in_string:
+            repaired += '"'
+
+        repaired = re.sub(r',\s*$', '', repaired)
+        repaired = re.sub(r',\s*"[^"]*":?\s*"?[^"]*$', '', repaired)
+
+        stack = []
+        in_string = False
+        escape = False
+        for char in repaired:
+            if escape:
+                escape = False
+                continue
+            if char == '\\' and in_string:
+                escape = True
+                continue
+            if char == '"':
+                in_string = not in_string
+                continue
+            if not in_string:
+                if char in '{[':
+                    stack.append(char)
+                elif char in '}]':
+                    if stack:
+                        stack.pop()
+
+        for open_char in reversed(stack):
+            if open_char == '{':
+                repaired += '}'
+            elif open_char == '[':
+                repaired += ']'
+
+        repaired = re.sub(r',\s*([}\]])', r'\1', repaired)
+        return json.loads(repaired)
+
     def _clean_and_parse_json(self, raw_text: str) -> Dict[str, Any]:
-        """Extracts JSON object from text, handling markdown fences and whitespace."""
+        """Extracts JSON object from text, handling markdown fences, whitespace, and truncation."""
         text = raw_text.strip()
         # Strip markdown code blocks
         if "```" in text:
@@ -164,6 +259,12 @@ class LLMProvider:
                     return json.loads(fixed)
                 except Exception:
                     pass
+
+        # Try repairing truncated JSON
+        try:
+            return self._repair_truncated_json(text)
+        except Exception:
+            pass
 
         raise LLMError(f"Failed to parse structured model response as JSON. Raw output: {text[:200]}...")
 

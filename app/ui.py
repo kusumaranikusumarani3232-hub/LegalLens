@@ -259,6 +259,9 @@ def run_document_analysis(provider: str, api_key: str):
             st.success("Analysis complete!")
         except Exception as e:
             st.error(f"Analysis failed: {str(e)}")
+            with st.expander("🛠️ Developer Debug & Error Details"):
+                import traceback
+                st.code(traceback.format_exc(), language="python")
 
 
 def render_understand_tab(provider: str, api_key: str):

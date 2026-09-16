@@ -42,7 +42,7 @@ class AppConfig:
             return target
 
         # Check credentials
-         if target == "groq" and cls.GROQ_API_KEY:
+        if target == "groq" and cls.GROQ_API_KEY:
             return "groq"
         if target == "gemini" and cls.GEMINI_API_KEY:
             return "gemini"
